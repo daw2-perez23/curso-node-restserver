@@ -5,17 +5,22 @@ const Usuario = require('../models/usuario.js')
 
 
 
-const usuariosGet = (req = request , res = response) => {
+const usuariosGet = async(req = request , res = response) => {
     
-    const { q, nombre = 'NULL', apikey, page = 1, limit} =  req.query
+    // const { q, nombre = 'NULL', apikey, page = 1, limit} =  req.query
+    const { limite = 5, desde = 0 } = req.query
+    const query = { state: true }
+
+    const [ total, usuarios ] = await Promise.all([
+        Usuario.countDocuments( query ),
+        Usuario.find( query ) 
+            .skip( Number( desde ) )
+            .limit( Number( limite ) )
+    ])
 
     res.json({
-        "msg": "get API - Controlador",
-        q, 
-        nombre, 
-        apikey,
-        page,
-        limit
+        total,
+        usuarios 
     })
 }
 
@@ -30,25 +35,36 @@ const usuariosPost = async(req, res = response) => {
     //Guarda en DB
     await usuario.save()
 
-    res.json({
-        usuario
-    })
+    res.json(usuario)
 }
 
-const usuariosPut = (req, res = response) => {
+const usuariosPut = async(req, res = response) => {
 
-    const id = req.params.id
+    const { id } = req.params.id
+    const { password, google, email, ...resto } = req.body
 
-    res.json({
-        "msg": "put API - Controlador",
-        id
-    })
+    //TODO validar contraseña bd
+    if( password ) {
+        //Encriptar la contraseña
+        const salt = bcryptjs.genSaltSync()
+        resto.password = bcryptjs.hashSync( password, salt )
+    }
+
+    const usuario = await Usuario.findByIdAndUpdate( id, resto )
+
+    res.json(usuario)
 } 
 
-const usuariosDelete = (req, res = response) => {
-    res.json({
-        "msg": "delete API - Controlador"
-    })
+const usuariosDelete = async(req, res = response) => {
+    
+    const { id } = req.params
+    
+    //Borrado físico
+    //const usuario = await Usuario.findByIdAndDelete( id )
+
+    const usuario = await Usuario.findByIdAndUpdate( id, { state: false } )
+
+    res.json(usuario)
 }
 
 
